@@ -1,15 +1,23 @@
 #!/usr/bin/env python
 __author__ = 'Brian K. Jones (bkjones@gmail.com)'
+__credits__ = ["Doug Hellmann", "Kent Johnson"]
+__version__ = 0.91
+__license__ = "BSD"
+__maintainer__ = "Brian K. Jones"
+__email__ = "bkjones@gmail.com"
 
+# stdlib imports
 import cgi
 import operator
 import re
 import sys
 import time
 import urlparse
+import argparse
+import inspect
 
+# non-standard library imports
 import apachelogs
-import CommandLineApp
 
 class Rule(object):
   """
@@ -88,16 +96,13 @@ class Filter(object):
         yield line
 
 
-class loghetti(CommandLineApp.CommandLineApp):
+class loghetti(object):
   """
   This is the meat of the application. This is an application to help troubleshoot issues and generate statistics by
   slicing and dicing the data in your apache combined format access logs.
   """
-  def __init__(self, args=None):
-    if args is None:
-      args = sys.argv[1:]
+  def __init__(self):
     self.ruleset = []
-    super(loghetti,self).__init__(args) # overrode CLA-supplied init, so need to call it explicitly. 
     self.count = False
     self.process_date = False
     self.process_url = False
@@ -106,30 +111,30 @@ class loghetti(CommandLineApp.CommandLineApp):
     self.nolazy = False
     self.customOutput = False
 
-  def optionHandler_nolazy(self):
+  def optionHandler_nolazy(self, dest=None):
     self.nolazy = True
     self.process_date=True
     self.process_url=True
     self.process_qstring=True
 
-  def optionHandler_code(self, respcode):
+  def optionHandler_code(self, respcode, dest=None):
     """
     Return all lines in file containing the user-supplied HTTP response code (500, 404, 200, etc)
     """
-    self.coderule = Rule("http_response_code", "=", respcode)
-    self.ruleset.append(self.coderule)
+    coderule = Rule("http_response_code", "=", respcode)
+    self.ruleset.append(coderule)
     return
 
-  def optionHandler_count(self):
+  def optionHandler_count(self, val):
     """
     Don't spit out every line - just the number of matches. Good for reporting, testing without
     losing terminal history in the scrollback, or sitting in meetings and saying
     "yeah, that happened 400 times in the last half hour" :-) 
     """
-    self.count = True
+    self.count = val
     return
 
-  def optionHandler_ip(self, ip):
+  def optionHandler_ip(self, ip, dest=None):
     """
     Return lines in the log that match the given IP address.
     """
@@ -137,7 +142,7 @@ class loghetti(CommandLineApp.CommandLineApp):
     self.ruleset.append(self.iprule)
     return
 
-  def optionHandler_month(self, month):
+  def optionHandler_month(self, month, dest=None):
     """
     Pass in a date using max 4-digits. No zero-padding, no spaces, no slashes. So if you want
     to see lines from January 31, the way to do that is to pass "131". February 3rd? Pass "23". Lame, I know.
@@ -148,7 +153,7 @@ class loghetti(CommandLineApp.CommandLineApp):
     self.process_date = True
     return
 
-  def optionHandler_day(self, day):
+  def optionHandler_day(self, day, dest=None):
     """
     Pass in a non-zero-padded day (1-31). Sorry, doesn't yet accept a range, though passing
     multiple --day arguments should work.
@@ -233,11 +238,39 @@ class loghetti(CommandLineApp.CommandLineApp):
     self.outmod = __import__(methodname)
     return
 
-  def main(self, *filename):
+  def opt_method_map(self):
+     meth_prefix = 'optionHandler_'
+     mapping = {}
+     for meth in inspect.getmembers(self.__class__, inspect.ismethod):
+        opt = meth[0][len(meth_prefix):]
+        if opt:
+           mapping[opt] = meth[0]
+
+     return mapping
+
+  def main(self, args):
     """
     Takes a single log file as an argument (for now)
     """
-    log = apachelogs.ApacheLogFile(*filename)
+    handler_map = self.opt_method_map()
+
+    for opt,val in args.__dict__.iteritems():
+       "For each option passed in, map it to an optionHandler."
+       if opt and val:
+          if opt in handler_map:
+            opt_handler = getattr(self, handler_map[opt])
+            optval = getattr(args, opt)
+            print "OPTION HANDLER: ", opt_handler
+            print "OPTION VALUE: ", optval
+            opt_handler(optval)
+            print "DICT AFTER OPTION HANDLER CALL: ", self.__dict__
+          else:
+            setattr(self, opt, val)
+            print "FOUND %s=%s" % (str(opt), str(val))
+            print "DICT AFTER NON-OPTIONHANDLER ARG: ", self.__dict__
+  
+    log = apachelogs.ApacheLogFile(self.logfile)
+
     myfilter = Filter(log, self.ruleset, self.process_date, self.process_url, self.process_qstring)
 
     if self.customOutput:
@@ -263,12 +296,21 @@ class loghetti(CommandLineApp.CommandLineApp):
       if self.count:
         print "Matching lines: ", count
 
-def parseargs:
-   parser = argparse.ArgumentParser(description="An Apache combined format log file strainer.")
-   parser.add_argument('--code', action=loghetti2)
-   parser.add_argument('--file', action=loghett2)
-   args = parser.parse_args()
-
 
 if __name__ == "__main__":
-  loghetti().run()
+   l = loghetti()
+   parser = argparse.ArgumentParser(description="An Apache combined format log file strainer.")
+   parser.add_argument('--code', action='store', dest='code')
+   parser.add_argument('--count', action='store_true', dest='count')
+   parser.add_argument('--file', action='store', dest='logfile')
+   parser.add_argument('--ip', action='store', dest='ip')
+   parser.add_argument('--month', action='store', dest='month')
+   parser.add_argument('--day', action='store', dest='day')
+   parser.add_argument('--year', action='store', dest='year')
+   parser.add_argument('--hour', action='store', dest='hour')
+   parser.add_argument('--minute', action='store', dest='minute')
+   parser.add_argument('--return', action='store', dest='return')
+   args = parser.parse_args()
+   print "ARGS: ", args
+   print "Running main...."
+   l.main(args)
