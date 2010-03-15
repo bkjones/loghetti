@@ -260,14 +260,9 @@ class loghetti(object):
           if opt in handler_map:
             opt_handler = getattr(self, handler_map[opt])
             optval = getattr(args, opt)
-            print "OPTION HANDLER: ", opt_handler
-            print "OPTION VALUE: ", optval
             opt_handler(optval)
-            print "DICT AFTER OPTION HANDLER CALL: ", self.__dict__
           else:
             setattr(self, opt, val)
-            print "FOUND %s=%s" % (str(opt), str(val))
-            print "DICT AFTER NON-OPTIONHANDLER ARG: ", self.__dict__
   
     log = apachelogs.ApacheLogFile(self.logfile)
 
@@ -311,6 +306,4 @@ if __name__ == "__main__":
    parser.add_argument('--minute', action='store', dest='minute')
    parser.add_argument('--return', action='store', dest='return')
    args = parser.parse_args()
-   print "ARGS: ", args
-   print "Running main...."
    l.main(args)
