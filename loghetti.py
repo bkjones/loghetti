@@ -226,7 +226,27 @@ class loghetti(object):
 
   def optionHandler_return(self, fields):
     """A list of fields to spit out instead of the whole line. These map directly to attributes of line objects,
-    so to get the response code and IP *only*, you'd say '--return=http_response_code,ip'"""
+    so to get the response code and IP *only*, you'd say '--return=http_response_code,ip'
+
+    Field names are passed directly to apachelogs.py, so they need to be the names used there. Here's an example:
+    The following Apache log line:
+    127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"
+
+    would have the following field values as an ApacheLogLine:
+
+      ip = '127.0.0.1'
+      ident = '-'
+      http_user = 'frank'
+      time = '10/Oct/2000:13:55:36 -0700'
+      request_line = 'GET /apache_pb.gif HTTP/1.0'
+      http_response_code = '200'
+      http_response_size = 2326
+      referrer = 'http://www.example.com/start.html'
+      user_agent = 'Mozilla/4.08 [en] (Win98; I ;Nav)'
+      http_method = 'GET'
+      url = '/apache_pb.gif'
+      http_vers = 'HTTP/1.0'
+   """
     self.fields = fields.split(',')
     return
 
@@ -295,15 +315,17 @@ class loghetti(object):
 if __name__ == "__main__":
    l = loghetti()
    parser = argparse.ArgumentParser(description="An Apache combined format log file strainer.")
-   parser.add_argument('--code', action='store', dest='code')
-   parser.add_argument('--count', action='store_true', dest='count')
-   parser.add_argument('--file', action='store', dest='logfile')
-   parser.add_argument('--ip', action='store', dest='ip')
-   parser.add_argument('--month', action='store', dest='month')
-   parser.add_argument('--day', action='store', dest='day')
-   parser.add_argument('--year', action='store', dest='year')
-   parser.add_argument('--hour', action='store', dest='hour')
-   parser.add_argument('--minute', action='store', dest='minute')
-   parser.add_argument('--return', action='store', dest='return')
+   parser.add_argument('--code', action='store', dest='code', help="HTTP response code (500, 404, 200, etc)")
+   parser.add_argument('--count', action='store_true', dest='count', help="Return *only* total number of matching lines")
+   parser.add_argument('--file', action='store', dest='logfile', help="Log file to process")
+   parser.add_argument('--ip', action='store', dest='ip', help="IP of requesting device.")
+   parser.add_argument('--month', action='store', dest='month', help="Filter by month. No leading zeroes, please")
+   parser.add_argument('--day', action='store', dest='day', help="Filter by day of month (usu. used w/ --month). No leading zeroes, please")
+   parser.add_argument('--year', action='store', dest='year', help="Filter by 4-digit year")
+   parser.add_argument('--hour', action='store', dest='hour', help="Filter by hour.")
+   parser.add_argument('--minute', action='store', dest='minute', help="Filter by minute (usu. used w/ --hour).")
+   parser.add_argument('--return', action='store', dest='return',
+                       help="""Comma-separated list of fields to return. Valid fields are:\n 
+                                 ip,ident,http_user,time,request_line,http_response_code,http_response_size,referrer,user_agent,http_method,url,http_vers """)
    args = parser.parse_args()
    l.main(args)
