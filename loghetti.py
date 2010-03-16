@@ -101,7 +101,8 @@ class loghetti(object):
   This is the meat of the application. This is an application to help troubleshoot issues and generate statistics by
   slicing and dicing the data in your apache combined format access logs.
   """
-  def __init__(self):
+  def __init__(self, args):
+    self.handler_map = self.opt_method_map()
     self.ruleset = []
     self.count = False
     self.process_date = False
@@ -110,6 +111,21 @@ class loghetti(object):
     self.fields = False
     self.nolazy = False
     self.customOutput = False
+
+    for opt,val in args.__dict__.iteritems():
+       """
+       For each option passed in, map it to an optionHandler, and run it.
+       Option handlers just set self.* attrs, and add Rule objects to self.ruleset
+       
+       """
+       if opt and val:
+          if opt in self.handler_map:
+            opt_handler = getattr(self, self.handler_map[opt])
+            optval = getattr(args, opt)
+            opt_handler(optval)
+          else:
+            setattr(self, opt, val)
+  
 
   def optionHandler_nolazy(self, dest=None):
     self.nolazy = True
@@ -268,24 +284,12 @@ class loghetti(object):
 
      return mapping
 
-  def main(self, args):
+  def main(self):
     """
     Takes a single log file as an argument (for now)
     """
-    handler_map = self.opt_method_map()
 
-    for opt,val in args.__dict__.iteritems():
-       "For each option passed in, map it to an optionHandler."
-       if opt and val:
-          if opt in handler_map:
-            opt_handler = getattr(self, handler_map[opt])
-            optval = getattr(args, opt)
-            opt_handler(optval)
-          else:
-            setattr(self, opt, val)
-  
     log = apachelogs.ApacheLogFile(self.logfile)
-
     myfilter = Filter(log, self.ruleset, self.process_date, self.process_url, self.process_qstring)
 
     if self.customOutput:
@@ -298,7 +302,11 @@ class loghetti(object):
         if self.fields:
           flist = []
           for field in self.fields:
-            flist.append(getattr(line, field))
+             try:
+               flist.append(getattr(line, field))
+             except AttributeError as out:
+                print "Line is missing field '%s'. That's odd. Typo in --return option maybe?" % str(field)
+                return
           for item in flist:
              print item,
           print 
@@ -313,7 +321,6 @@ class loghetti(object):
 
 
 if __name__ == "__main__":
-   l = loghetti()
    parser = argparse.ArgumentParser(description="An Apache combined format log file strainer.")
    parser.add_argument('--code', action='store', dest='code', help="HTTP response code (500, 404, 200, etc)")
    parser.add_argument('--count', action='store_true', dest='count', help="Return *only* total number of matching lines")
@@ -328,4 +335,5 @@ if __name__ == "__main__":
                        help="""Comma-separated list of fields to return. Valid fields are:\n 
                                  ip,ident,http_user,time,request_line,http_response_code,http_response_size,referrer,user_agent,http_method,url,http_vers """)
    args = parser.parse_args()
-   l.main(args)
+   l = loghetti(args) #initialize loghetti
+   l.main()

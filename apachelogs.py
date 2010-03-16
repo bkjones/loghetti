@@ -83,7 +83,9 @@ class ApacheLogFile:
         try:
           log_line = ApacheLogLine(*m.groups())
           yield log_line
-        except:
+        except GeneratorExit:
+           pass
+        except Exception as e:
           print "NON_COMPLIANT_FORMAT: ", line
           
         
