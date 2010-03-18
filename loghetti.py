@@ -124,6 +124,7 @@ class loghetti(object):
             optval = getattr(args, opt)
             opt_handler(optval)
           else:
+            "NO HANDLER FOR OPT: ", opt, " VAL: ", val
             setattr(self, opt, val)
   
 
@@ -331,6 +332,7 @@ if __name__ == "__main__":
    parser.add_argument('--year', action='store', dest='year', help="Filter by 4-digit year")
    parser.add_argument('--hour', action='store', dest='hour', help="Filter by hour.")
    parser.add_argument('--minute', action='store', dest='minute', help="Filter by minute (usu. used w/ --hour).")
+   parser.add_argument('--output', action='store', dest='output', help="Custom module to filter output through.")
    parser.add_argument('--return', action='store', dest='return',
                        help="""Comma-separated list of fields to return. Valid fields are:\n 
                                  ip,ident,http_user,time,request_line,http_response_code,http_response_size,referrer,user_agent,http_method,url,http_vers """)
